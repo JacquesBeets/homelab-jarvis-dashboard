@@ -5,21 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>J.A.R.V.I.S. | Homelab Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        jarvis: {
-                            cyan: '#00d4ff',
-                            blue: '#0088cc',
-                            amber: '#ff9500',
-                            dark: '#0a0e17',
-                            panel: '#0d1420',
-                            card: '#111827'
-                        }
-                    },
+ 
                     fontFamily: {
                         display: ['Orbitron', 'sans-serif'],
                         ui: ['Rajdhani', 'sans-serif'],
@@ -275,6 +268,28 @@
         .server-card.offline { --card-accent: #ff3366; }
         .server-card.timeout { --card-accent: #ffcc00; }
         .server-card.unknown { --card-accent: #666666; }
+
+        /* Drag and Drop States */
+        .server-card.sortable-ghost {
+            opacity: 0.4;
+            background: rgba(0, 212, 255, 0.1);
+            border: 2px dashed rgba(0, 212, 255, 0.5);
+        }
+
+        .server-card.sortable-drag {
+            opacity: 1;
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.4);
+            border-color: #00d4ff;
+            transform: scale(1.02);
+        }
+
+        .server-card.sortable-chosen {
+            cursor: grabbing;
+        }
+
+        .server-cards-grid.sortable-enabled .server-card {
+            cursor: grab;
+        }
 
         .status-indicator {
             width: 10px;
@@ -778,7 +793,7 @@
         <div class="max-w-7xl mx-auto px-6 py-4">
             <div class="flex items-center justify-between text-xs text-[#7eb8da]">
                 <p class="italic">"I do enjoy a good challenge, sir."</p>
-                <p>J.A.R.V.I.S. v1.0.0 | Managed by Niles</p>
+                <p>J.A.R.V.I.S. v2.0.0 | Managed by Niles</p>
             </div>
         </div>
     </footer>
@@ -805,7 +820,8 @@
                 refreshInterval: 30000,
                 timeout: 5000,
                 maxRetries: 2,
-                storageKey: 'jarvis-servers'
+                storageKey: 'jarvis-servers',
+                backendEnabled: false
             },
 
             // State
@@ -813,6 +829,7 @@
             status: {},
             activityLog: [],
             refreshTimer: null,
+            sortableInstance: null,
 
             // ═══════════════════════════════════════════════════════════════════
             // DEFAULT SERVERS (Pre-configured homelab)
@@ -828,7 +845,7 @@
                     { id: 'jellyseerr', name: 'Jellyseerr', address: '192.168.0.18', port: 5055, type: 'media', healthEndpoint: '/api/v1/status', group: 'main', enabled: true },
                     { id: 'qbittorrent', name: 'qBittorrent', address: '192.168.0.19', port: 8090, type: 'download', healthEndpoint: '/', group: 'main', enabled: true },
                     { id: 'flaresolverr', name: 'FlareSolverr', address: '192.168.0.20', port: 8191, type: 'utility', healthEndpoint: '/health', group: 'main', enabled: true },
-                    { id: 'mediasync', name: 'Media Sync', address: '192.168.0.21', port: 3000, type: 'monitoring', healthEndpoint: '/api/status', group: 'main', enabled: true },
+                    { id: 'mediasync', name: 'Media Sync', address: '192.168.0.77', port: 3333, type: 'monitoring', healthEndpoint: '/api/status', group: 'main', enabled: true },
 
                     // Media Server (192.168.0.5)
                     { id: 'tdarr', name: 'Tdarr', address: '192.168.0.31', port: 8265, type: 'media', healthEndpoint: '/', group: 'media', enabled: true },
@@ -848,7 +865,23 @@
             // ═══════════════════════════════════════════════════════════════════
 
             async loadServers() {
-                // Check localStorage FIRST - this is where user changes are saved
+                // Try backend API first if enabled
+                if (this.config.backendEnabled) {
+                    try {
+                        const response = await fetch('/api/servers');
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                                this.log('Loaded servers from backend API');
+                                return data;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Backend API unavailable:', e);
+                    }
+                }
+
+                // Fall back to localStorage
                 const stored = localStorage.getItem(this.config.storageKey);
                 if (stored) {
                     try {
@@ -887,8 +920,60 @@
             },
 
             saveServers() {
+                // Always save to localStorage as fallback
                 localStorage.setItem(this.config.storageKey, JSON.stringify(this.servers));
                 this.log('Configuration saved');
+            },
+
+            async saveServerToApi(server) {
+                if (!this.config.backendEnabled) return;
+                try {
+                    const response = await fetch(`/api/servers/${server.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(server)
+                    });
+                    if (!response.ok) throw new Error('API save failed');
+                } catch (e) {
+                    console.warn('Failed to save to API:', e);
+                }
+            },
+
+            async createServerInApi(server) {
+                if (!this.config.backendEnabled) return null;
+                try {
+                    const response = await fetch('/api/servers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(server)
+                    });
+                    if (response.ok) return await response.json();
+                } catch (e) {
+                    console.warn('Failed to create in API:', e);
+                }
+                return null;
+            },
+
+            async deleteServerFromApi(serverId) {
+                if (!this.config.backendEnabled) return;
+                try {
+                    await fetch(`/api/servers/${serverId}`, { method: 'DELETE' });
+                } catch (e) {
+                    console.warn('Failed to delete from API:', e);
+                }
+            },
+
+            async saveOrderToApi(order) {
+                if (!this.config.backendEnabled) return;
+                try {
+                    await fetch('/api/servers/reorder', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order })
+                    });
+                } catch (e) {
+                    console.warn('Failed to save order to API:', e);
+                }
             },
 
             // ═══════════════════════════════════════════════════════════════════
@@ -974,29 +1059,37 @@
             // SERVER MANAGER (CRUD)
             // ═══════════════════════════════════════════════════════════════════
 
-            addServer(serverData) {
+            async addServer(serverData) {
                 const newServer = {
                     ...serverData,
                     id: 'srv_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
                     enabled: true
                 };
-                this.servers.push(newServer);
+
+                // Try API first
+                const apiServer = await this.createServerInApi(newServer);
+                const finalServer = apiServer || newServer;
+
+                this.servers.push(finalServer);
                 this.saveServers();
                 this.renderServers();
-                this.checkServer(newServer).then(result => {
-                    this.status[newServer.id] = result;
+                this.initSortable();
+                this.checkServer(finalServer).then(result => {
+                    this.status[finalServer.id] = result;
                     this.updateUI();
                 });
-                this.log(`Added server: ${newServer.name}`);
-                this.showToast(`Server "${newServer.name}" added`, 'success');
+                this.log(`Added server: ${finalServer.name}`);
+                this.showToast(`Server "${finalServer.name}" added`, 'success');
             },
 
-            updateServer(serverId, updates) {
+            async updateServer(serverId, updates) {
                 const index = this.servers.findIndex(s => s.id === serverId);
                 if (index !== -1) {
                     this.servers[index] = { ...this.servers[index], ...updates };
                     this.saveServers();
+                    await this.saveServerToApi(this.servers[index]);
                     this.renderServers();
+                    this.initSortable();
                     this.checkServer(this.servers[index]).then(result => {
                         this.status[serverId] = result;
                         this.updateUI();
@@ -1006,13 +1099,15 @@
                 }
             },
 
-            removeServer(serverId) {
+            async removeServer(serverId) {
                 const server = this.servers.find(s => s.id === serverId);
                 if (server) {
+                    await this.deleteServerFromApi(serverId);
                     this.servers = this.servers.filter(s => s.id !== serverId);
                     delete this.status[serverId];
                     this.saveServers();
                     this.renderServers();
+                    this.initSortable();
                     this.updateUI();
                     this.log(`Removed server: ${server.name}`);
                     this.showToast(`Server "${server.name}" removed`, 'success');
@@ -1063,10 +1158,10 @@
                     const latencyDisplay = status.latency ? `${status.latency}ms` : '--';
 
                     return `
-                        <div class="server-card ${status.status} card-reveal" style="animation-delay: ${index * 50}ms;">
+                        <div class="server-card ${status.status} card-reveal" data-server-id="${server.id}" style="animation-delay: ${index * 50}ms;">
                             <div class="flex items-start justify-between mb-3">
                                 <div class="flex items-center gap-2">
-                                    <span class="status-indicator ${status.status}"></span>
+                                    <span class="status-indicator ${status.status}" data-status-indicator="${server.id}"></span>
                                     <h3 class="font-display text-sm font-semibold tracking-wide">${server.name}</h3>
                                 </div>
                                 <button onclick="JARVIS.showEditModal('${server.id}')" class="text-[#7eb8da] hover:text-[#00d4ff] transition-colors">
@@ -1083,11 +1178,11 @@
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-[#7eb8da]">Latency</span>
-                                    <span class="font-mono text-xs ${status.status === 'online' ? 'text-[#00ff88]' : ''}">${latencyDisplay}</span>
+                                    <span class="font-mono text-xs" data-latency="${server.id}">${latencyDisplay}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-[#7eb8da]">Status</span>
-                                    <span class="font-mono text-xs uppercase ${this.getStatusClass(status.status)}">${status.status}</span>
+                                    <span class="font-mono text-xs uppercase" data-status-text="${server.id}">${status.status}</span>
                                 </div>
                             </div>
                             <div class="mt-3 pt-3 border-t border-[rgba(0,212,255,0.1)] flex items-center justify-between">
@@ -1111,8 +1206,45 @@
                 return classes[status] || classes.unknown;
             },
 
-            updateUI() {
-                this.renderServers();
+            // Targeted status updates without full re-render (no flicker)
+            updateServerStatuses() {
+                Object.entries(this.status).forEach(([id, data]) => {
+                    // Update card class
+                    const card = document.querySelector(`[data-server-id="${id}"]`);
+                    if (card) {
+                        card.className = card.className.replace(/\b(online|offline|timeout|unknown)\b/g, '');
+                        card.classList.add(data.status);
+                    }
+
+                    // Update status indicator
+                    const indicator = document.querySelector(`[data-status-indicator="${id}"]`);
+                    if (indicator) {
+                        indicator.className = `status-indicator ${data.status}`;
+                    }
+
+                    // Update latency
+                    const latency = document.querySelector(`[data-latency="${id}"]`);
+                    if (latency) {
+                        latency.textContent = data.latency ? `${data.latency}ms` : '--';
+                        latency.className = `font-mono text-xs ${data.status === 'online' ? 'text-[#00ff88]' : ''}`;
+                    }
+
+                    // Update status text
+                    const statusText = document.querySelector(`[data-status-text="${id}"]`);
+                    if (statusText) {
+                        statusText.textContent = data.status;
+                        statusText.className = `font-mono text-xs uppercase ${this.getStatusClass(data.status)}`;
+                    }
+                });
+            },
+
+            updateUI(fullRender = false) {
+                if (fullRender) {
+                    this.renderServers();
+                    this.initSortable();
+                } else {
+                    this.updateServerStatuses();
+                }
                 this.updateStats();
                 this.updateArcReactor();
                 this.updateLastUpdate();
@@ -1408,6 +1540,8 @@
                             this.servers = config.servers;
                             this.saveServers();
                             this.status = {};
+                            this.renderServers();
+                            this.initSortable();
                             this.checkAllServers();
                             this.log(`Imported ${config.servers.length} servers`);
                             this.showToast('Configuration imported', 'success');
@@ -1451,6 +1585,72 @@
             },
 
             // ═══════════════════════════════════════════════════════════════════
+            // BACKEND DETECTION
+            // ═══════════════════════════════════════════════════════════════════
+
+            async detectBackend() {
+                try {
+                    const res = await fetch('/api/servers', { method: 'HEAD' });
+                    this.config.backendEnabled = res.ok;
+                    if (this.config.backendEnabled) {
+                        this.log('Backend API detected');
+                    }
+                } catch {
+                    this.config.backendEnabled = false;
+                    this.log('Running in static mode (no backend)');
+                }
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // DRAG AND DROP (SortableJS)
+            // ═══════════════════════════════════════════════════════════════════
+
+            initSortable() {
+                const container = document.getElementById('servers-container');
+                if (!container) return;
+
+                // Destroy existing instance
+                if (this.sortableInstance) {
+                    this.sortableInstance.destroy();
+                }
+
+                // Only enable sorting when backend is available
+                if (!this.config.backendEnabled) {
+                    container.classList.remove('sortable-enabled');
+                    return;
+                }
+
+                container.classList.add('sortable-enabled');
+
+                this.sortableInstance = new Sortable(container, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    chosenClass: 'sortable-chosen',
+                    filter: '.col-span-full', // Don't drag empty state
+                    onEnd: (evt) => {
+                        if (evt.oldIndex === evt.newIndex) return;
+
+                        const newOrder = Array.from(container.querySelectorAll('[data-server-id]'))
+                            .map(card => card.dataset.serverId);
+
+                        // Update local array order
+                        const reordered = [];
+                        newOrder.forEach(id => {
+                            const server = this.servers.find(s => s.id === id);
+                            if (server) reordered.push(server);
+                        });
+                        this.servers = reordered;
+
+                        // Save to backend and localStorage
+                        this.saveOrderToApi(newOrder);
+                        this.saveServers();
+                        this.log('Server order updated');
+                    }
+                });
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
             // INITIALIZATION
             // ═══════════════════════════════════════════════════════════════════
 
@@ -1458,12 +1658,18 @@
                 console.log('Initializing J.A.R.V.I.S. Dashboard...');
                 this.log('J.A.R.V.I.S. initializing...');
 
-                // Load servers
+                // Detect backend availability first
+                await this.detectBackend();
+
+                // Load servers (from API if available, localStorage otherwise)
                 this.servers = await this.loadServers();
 
                 // Initial render
                 this.renderServers();
                 this.renderActivityFeed();
+
+                // Initialize drag-and-drop (only works with backend)
+                this.initSortable();
 
                 // Start health checks
                 await this.checkAllServers();
@@ -1480,9 +1686,18 @@
                 // Event listeners
                 document.getElementById('add-server-btn').addEventListener('click', () => this.showAddModal());
                 document.getElementById('refresh-btn').addEventListener('click', () => this.checkAllServers());
-                document.getElementById('search-filter').addEventListener('input', () => this.renderServers());
-                document.getElementById('type-filter').addEventListener('change', () => this.renderServers());
-                document.getElementById('status-filter').addEventListener('change', () => this.renderServers());
+                document.getElementById('search-filter').addEventListener('input', () => {
+                    this.renderServers();
+                    this.initSortable();
+                });
+                document.getElementById('type-filter').addEventListener('change', () => {
+                    this.renderServers();
+                    this.initSortable();
+                });
+                document.getElementById('status-filter').addEventListener('change', () => {
+                    this.renderServers();
+                    this.initSortable();
+                });
                 document.getElementById('import-file').addEventListener('change', (e) => this.handleImport(e));
 
                 this.log('J.A.R.V.I.S. online', 'success');
