@@ -1,0 +1,177 @@
+{
+    "version": "1.0",
+    "lastUpdated": "2026-01-25T00:00:00Z",
+    "description": "J.A.R.V.I.S. Homelab Dashboard Server Configuration",
+    "servers": [
+        {
+            "id": "omada",
+            "name": "Omada Controller",
+            "address": "192.168.0.2",
+            "port": 8043,
+            "type": "network",
+            "healthEndpoint": "/",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "radarr",
+            "name": "Radarr",
+            "address": "192.168.0.15",
+            "port": 7878,
+            "type": "arr",
+            "healthEndpoint": "/api/v3/system/status",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "sonarr",
+            "name": "Sonarr",
+            "address": "192.168.0.16",
+            "port": 8989,
+            "type": "arr",
+            "healthEndpoint": "/api/v3/system/status",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "prowlarr",
+            "name": "Prowlarr",
+            "address": "192.168.0.17",
+            "port": 9696,
+            "type": "arr",
+            "healthEndpoint": "/api/v1/system/status",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "jellyseerr",
+            "name": "Jellyseerr",
+            "address": "192.168.0.18",
+            "port": 5055,
+            "type": "media",
+            "healthEndpoint": "/api/v1/status",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "qbittorrent",
+            "name": "qBittorrent",
+            "address": "192.168.0.19",
+            "port": 8090,
+            "type": "download",
+            "healthEndpoint": "/",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "flaresolverr",
+            "name": "FlareSolverr",
+            "address": "192.168.0.20",
+            "port": 8191,
+            "type": "utility",
+            "healthEndpoint": "/health",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "mediasync",
+            "name": "Media Sync Dashboard",
+            "address": "192.168.0.21",
+            "port": 3000,
+            "type": "monitoring",
+            "healthEndpoint": "/api/status",
+            "group": "main",
+            "enabled": true
+        },
+        {
+            "id": "tdarr",
+            "name": "Tdarr",
+            "address": "192.168.0.31",
+            "port": 8265,
+            "type": "media",
+            "healthEndpoint": "/",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "prometheus",
+            "name": "Prometheus",
+            "address": "192.168.0.52",
+            "port": 9090,
+            "type": "monitoring",
+            "healthEndpoint": "/-/healthy",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "grafana",
+            "name": "Grafana",
+            "address": "192.168.0.53",
+            "port": 3000,
+            "type": "monitoring",
+            "healthEndpoint": "/api/health",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "jellyfin",
+            "name": "Jellyfin",
+            "address": "192.168.0.62",
+            "port": 8096,
+            "type": "media",
+            "healthEndpoint": "/health",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "llama-embed",
+            "name": "LLM Embeddings",
+            "address": "192.168.0.63",
+            "port": 11434,
+            "type": "ai",
+            "healthEndpoint": "/api/tags",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "llama-inference",
+            "name": "LLM Inference",
+            "address": "192.168.0.63",
+            "port": 11435,
+            "type": "ai",
+            "healthEndpoint": "/api/tags",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "mem0",
+            "name": "Mem0 API",
+            "address": "192.168.0.80",
+            "port": 8080,
+            "type": "ai",
+            "healthEndpoint": "/health",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "qdrant",
+            "name": "Qdrant",
+            "address": "192.168.0.81",
+            "port": 6333,
+            "type": "ai",
+            "healthEndpoint": "/healthz",
+            "group": "media",
+            "enabled": true
+        },
+        {
+            "id": "neo4j",
+            "name": "Neo4j",
+            "address": "192.168.0.82",
+            "port": 7474,
+            "type": "ai",
+            "healthEndpoint": "/",
+            "group": "media",
+            "enabled": true
+        }
+    ]
+}

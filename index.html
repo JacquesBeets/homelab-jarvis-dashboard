@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. | Homelab Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        jarvis: {
+                            cyan: '#00d4ff',
+                            blue: '#0088cc',
+                            amber: '#ff9500',
+                            dark: '#0a0e17',
+                            panel: '#0d1420',
+                            card: '#111827'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Orbitron', 'sans-serif'],
+                        ui: ['Rajdhani', 'sans-serif'],
+                        mono: ['Share Tech Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0a0e17;
+            overflow-x: hidden;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           AMBIENT EFFECTS
+           ═══════════════════════════════════════════════════════════ */
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+            animation: scan 8s linear infinite;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100vh; }
+        }
+
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .corner-bracket {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            pointer-events: none;
+            z-index: 100;
+        }
+        .corner-bracket.top-left { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-bracket.top-right { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bracket.bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-bracket.bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+        /* ═══════════════════════════════════════════════════════════
+           HUD ELEMENTS
+           ═══════════════════════════════════════════════════════════ */
+
+        .hud-panel {
+            background: linear-gradient(135deg, rgba(13, 20, 32, 0.9), rgba(10, 14, 23, 0.95));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .hud-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            opacity: 0.6;
+        }
+
+        .hud-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #00d4ff, transparent);
+            opacity: 0.4;
+        }
+
+        .hud-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.8), 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .glow-box {
+            box-shadow:
+                0 0 20px rgba(0, 212, 255, 0.2),
+                inset 0 0 20px rgba(0, 212, 255, 0.05);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ARC REACTOR
+           ═══════════════════════════════════════════════════════════ */
+
+        .arc-reactor {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .reactor-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 212, 255, 0.6);
+        }
+
+        .reactor-outer {
+            inset: 0;
+            animation: reactor-pulse 3s ease-in-out infinite;
+        }
+
+        .reactor-mid {
+            inset: 15px;
+            border-style: dashed;
+            animation: reactor-spin 20s linear infinite;
+        }
+
+        .reactor-inner {
+            inset: 35px;
+            animation: reactor-spin 15s linear infinite reverse;
+        }
+
+        .reactor-core {
+            position: absolute;
+            inset: 55px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.8) 0%, rgba(0, 136, 204, 0.4) 50%, transparent 70%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: core-pulse 2s ease-in-out infinite;
+        }
+
+        .reactor-core-inner {
+            width: 30px;
+            height: 30px;
+            background: #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 30px #00d4ff, 0 0 60px rgba(0, 212, 255, 0.5);
+        }
+
+        .reactor-segments {
+            position: absolute;
+            inset: 25px;
+        }
+
+        .reactor-segment {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #00d4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        @keyframes reactor-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes reactor-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+                opacity: 1;
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(0, 212, 255, 0.6);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes core-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        /* Arc reactor health states */
+        .arc-reactor[data-health="optimal"] .reactor-core { background: radial-gradient(circle, rgba(0, 255, 136, 0.8) 0%, rgba(0, 200, 100, 0.4) 50%, transparent 70%); }
+        .arc-reactor[data-health="optimal"] .reactor-core-inner { background: #00ff88; box-shadow: 0 0 30px #00ff88; }
+        .arc-reactor[data-health="nominal"] .reactor-core { background: radial-gradient(circle, rgba(0, 212, 255, 0.8) 0%, rgba(0, 136, 204, 0.4) 50%, transparent 70%); }
+        .arc-reactor[data-health="degraded"] .reactor-core { background: radial-gradient(circle, rgba(255, 204, 0, 0.8) 0%, rgba(200, 150, 0, 0.4) 50%, transparent 70%); }
+        .arc-reactor[data-health="degraded"] .reactor-core-inner { background: #ffcc00; box-shadow: 0 0 30px #ffcc00; }
+        .arc-reactor[data-health="critical"] .reactor-core { background: radial-gradient(circle, rgba(255, 51, 102, 0.8) 0%, rgba(200, 50, 80, 0.4) 50%, transparent 70%); }
+        .arc-reactor[data-health="critical"] .reactor-core-inner { background: #ff3366; box-shadow: 0 0 30px #ff3366; animation: critical-flash 0.5s ease-in-out infinite; }
+
+        @keyframes critical-flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           SERVER CARDS
+           ═══════════════════════════════════════════════════════════ */
+
+        .server-card {
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(13, 20, 32, 0.95));
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 4px;
+            padding: 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .server-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--card-accent, #00d4ff), transparent);
+            opacity: 0.8;
+        }
+
+        .server-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+        }
+
+        .server-card.online { --card-accent: #00ff88; }
+        .server-card.offline { --card-accent: #ff3366; }
+        .server-card.timeout { --card-accent: #ffcc00; }
+        .server-card.unknown { --card-accent: #666666; }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-indicator.online { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .status-indicator.offline { background: #ff3366; box-shadow: 0 0 10px #ff3366; animation: status-blink 1s infinite; }
+        .status-indicator.timeout { background: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
+        .status-indicator.unknown { background: #666666; }
+
+        @keyframes status-blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.3; }
+        }
+
+        .type-badge {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            padding: 2px 8px;
+            border-radius: 2px;
+            text-transform: uppercase;
+        }
+
+        .type-badge.arr { background: rgba(139, 92, 246, 0.3); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.5); }
+        .type-badge.media { background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.5); }
+        .type-badge.network { background: rgba(34, 197, 94, 0.3); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.5); }
+        .type-badge.ai { background: rgba(0, 212, 255, 0.3); color: #00d4ff; border: 1px solid rgba(0, 212, 255, 0.5); }
+        .type-badge.monitoring { background: rgba(251, 191, 36, 0.3); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.5); }
+        .type-badge.download { background: rgba(249, 115, 22, 0.3); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.5); }
+        .type-badge.utility { background: rgba(148, 163, 184, 0.3); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.5); }
+        .type-badge.custom { background: rgba(100, 116, 139, 0.3); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.5); }
+
+        /* ═══════════════════════════════════════════════════════════
+           ANIMATIONS
+           ═══════════════════════════════════════════════════════════ */
+
+        .card-reveal {
+            animation: cardReveal 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .typing-effect {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 1s steps(20) forwards;
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           MODAL
+           ═══════════════════════════════════════════════════════════ */
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+        }
+
+        .modal-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            z-index: 1000;
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -45%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           FORM ELEMENTS
+           ═══════════════════════════════════════════════════════════ */
+
+        .hud-input {
+            background: rgba(10, 14, 23, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 2px;
+            padding: 0.75rem 1rem;
+            color: #e0f0ff;
+            font-family: 'Share Tech Mono', monospace;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .hud-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .hud-input::placeholder {
+            color: rgba(126, 184, 218, 0.5);
+        }
+
+        .hud-select {
+            background: rgba(10, 14, 23, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 2px;
+            padding: 0.75rem 1rem;
+            color: #e0f0ff;
+            font-family: 'Rajdhani', sans-serif;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .hud-select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .hud-btn {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 0.75rem 1.5rem;
+            border-radius: 2px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .hud-btn-primary {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 136, 204, 0.3));
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .hud-btn-primary:hover {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(0, 136, 204, 0.5));
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .hud-btn-danger {
+            background: linear-gradient(135deg, rgba(255, 51, 102, 0.3), rgba(200, 50, 80, 0.3));
+            border-color: #ff3366;
+            color: #ff3366;
+        }
+
+        .hud-btn-danger:hover {
+            background: linear-gradient(135deg, rgba(255, 51, 102, 0.5), rgba(200, 50, 80, 0.5));
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.4);
+        }
+
+        .hud-btn-ghost {
+            background: transparent;
+            border-color: rgba(126, 184, 218, 0.3);
+            color: #7eb8da;
+        }
+
+        .hud-btn-ghost:hover {
+            border-color: rgba(126, 184, 218, 0.6);
+            color: #e0f0ff;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           ACTIVITY FEED
+           ═══════════════════════════════════════════════════════════ */
+
+        .feed-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+            font-size: 0.8rem;
+        }
+
+        .feed-item:last-child {
+            border-bottom: none;
+        }
+
+        .feed-timestamp {
+            font-family: 'Share Tech Mono', monospace;
+            color: rgba(126, 184, 218, 0.6);
+            font-size: 0.7rem;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           TOAST NOTIFICATIONS
+           ═══════════════════════════════════════════════════════════ */
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: linear-gradient(135deg, rgba(13, 20, 32, 0.95), rgba(10, 14, 23, 0.98));
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 4px;
+            padding: 1rem 1.5rem;
+            color: #e0f0ff;
+            font-family: 'Rajdhani', sans-serif;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success { border-color: #00ff88; }
+        .toast.error { border-color: #ff3366; }
+        .toast.warning { border-color: #ffcc00; }
+
+        /* ═══════════════════════════════════════════════════════════
+           SCROLLBAR
+           ═══════════════════════════════════════════════════════════ */
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 14, 23, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, 0.5);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════════════════════ */
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .left-panel, .right-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .server-cards-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-jarvis-dark text-[#e0f0ff] min-h-screen">
+    <!-- Ambient Effects -->
+    <div class="scanline"></div>
+    <div class="grid-overlay"></div>
+    <div class="corner-bracket top-left"></div>
+    <div class="corner-bracket top-right"></div>
+    <div class="corner-bracket bottom-left"></div>
+    <div class="corner-bracket bottom-right"></div>
+
+    <!-- Header -->
+    <header class="border-b border-[rgba(0,212,255,0.2)] bg-[rgba(13,20,32,0.8)] backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 relative">
+                        <!-- Mini Arc Reactor Logo -->
+                        <div class="absolute inset-0 rounded-full border-2 border-[#00d4ff] opacity-60"></div>
+                        <div class="absolute inset-2 rounded-full border border-dashed border-[#00d4ff] opacity-40 animate-spin" style="animation-duration: 10s;"></div>
+                        <div class="absolute inset-3 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#0088cc] opacity-80"></div>
+                        <div class="absolute inset-4 rounded-full bg-[#00d4ff] shadow-[0_0_20px_#00d4ff]"></div>
+                    </div>
+                    <div>
+                        <h1 class="font-display text-2xl font-bold tracking-wider glow-text">J.A.R.V.I.S.</h1>
+                        <p class="text-xs text-[#7eb8da] tracking-widest uppercase">Homelab Command Center</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div id="system-time" class="font-mono text-sm text-[#7eb8da]"></div>
+                    <div id="global-status" class="flex items-center gap-2">
+                        <span class="status-indicator unknown"></span>
+                        <span class="text-sm">Initializing...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <div class="main-grid grid grid-cols-[250px_1fr_280px] gap-6">
+
+            <!-- Left Panel: Arc Reactor + Quick Stats -->
+            <aside class="left-panel space-y-6">
+                <!-- Arc Reactor -->
+                <div class="hud-panel p-6 glow-box">
+                    <h3 class="hud-title text-xs mb-4 text-center">System Status</h3>
+                    <div class="arc-reactor" data-health="unknown">
+                        <div class="reactor-ring reactor-outer"></div>
+                        <div class="reactor-ring reactor-mid"></div>
+                        <div class="reactor-ring reactor-inner"></div>
+                        <div class="reactor-core">
+                            <div class="reactor-core-inner"></div>
+                        </div>
+                        <!-- Segments positioned around the reactor -->
+                        <div class="reactor-segments">
+                            <div class="reactor-segment" style="top: 0; left: 50%; transform: translateX(-50%);"></div>
+                            <div class="reactor-segment" style="top: 50%; right: 0; transform: translateY(-50%);"></div>
+                            <div class="reactor-segment" style="bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+                            <div class="reactor-segment" style="top: 50%; left: 0; transform: translateY(-50%);"></div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <div id="health-percentage" class="font-display text-3xl font-bold glow-text">--%</div>
+                        <div class="text-xs text-[#7eb8da] uppercase tracking-wider">Systems Online</div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="hud-panel p-4 glow-box">
+                    <h3 class="hud-title text-xs mb-4">Quick Stats</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#7eb8da] text-sm">Online</span>
+                            <span id="stat-online" class="font-mono text-[#00ff88]">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#7eb8da] text-sm">Degraded</span>
+                            <span id="stat-degraded" class="font-mono text-[#ffcc00]">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#7eb8da] text-sm">Offline</span>
+                            <span id="stat-offline" class="font-mono text-[#ff3366]">--</span>
+                        </div>
+                        <div class="border-t border-[rgba(0,212,255,0.2)] pt-3 mt-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#7eb8da] text-sm">Total</span>
+                                <span id="stat-total" class="font-mono text-[#00d4ff]">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Groups -->
+                <div class="hud-panel p-4 glow-box">
+                    <h3 class="hud-title text-xs mb-4">Server Groups</h3>
+                    <div id="server-groups" class="space-y-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center: Server Grid -->
+            <section class="center-panel">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="hud-title text-lg">System Status</h2>
+                        <p id="last-update" class="text-xs text-[#7eb8da] mt-1">Last updated: --</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button id="refresh-btn" class="hud-btn hud-btn-ghost flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button id="add-server-btn" class="hud-btn hud-btn-primary flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Server
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="hud-panel p-4 mb-6">
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <div class="flex-1 min-w-[200px]">
+                            <input type="text" id="search-filter" class="hud-input" placeholder="Search servers...">
+                        </div>
+                        <div class="min-w-[150px]">
+                            <select id="type-filter" class="hud-select">
+                                <option value="">All Types</option>
+                                <option value="arr">*arr Services</option>
+                                <option value="media">Media</option>
+                                <option value="network">Network</option>
+                                <option value="ai">AI Services</option>
+                                <option value="monitoring">Monitoring</option>
+                                <option value="download">Download</option>
+                                <option value="utility">Utility</option>
+                            </select>
+                        </div>
+                        <div class="min-w-[150px]">
+                            <select id="status-filter" class="hud-select">
+                                <option value="">All Status</option>
+                                <option value="online">Online</option>
+                                <option value="offline">Offline</option>
+                                <option value="timeout">Timeout</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Cards Grid -->
+                <div id="servers-container" class="server-cards-grid grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="col-span-full text-center py-12 text-[#7eb8da]">
+                        <div class="w-12 h-12 mx-auto mb-4 border-2 border-dashed border-[#00d4ff] rounded-full animate-spin opacity-50"></div>
+                        <p class="font-display tracking-wider">INITIALIZING SYSTEMS...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Activity Feed -->
+            <aside class="right-panel space-y-6">
+                <!-- Activity Feed -->
+                <div class="hud-panel p-4 glow-box">
+                    <h3 class="hud-title text-xs mb-4">Activity Log</h3>
+                    <div id="activity-feed" class="space-y-1 max-h-[400px] overflow-y-auto">
+                        <div class="feed-item text-[#7eb8da]">
+                            <span class="feed-timestamp">--:--:--</span>
+                            <span class="ml-2">Awaiting initialization...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="hud-panel p-4 glow-box">
+                    <h3 class="hud-title text-xs mb-4">Quick Actions</h3>
+                    <div class="space-y-2">
+                        <button onclick="JARVIS.checkAllServers()" class="w-full hud-btn hud-btn-ghost text-left">
+                            Force Refresh All
+                        </button>
+                        <button onclick="JARVIS.exportConfig()" class="w-full hud-btn hud-btn-ghost text-left">
+                            Export Configuration
+                        </button>
+                        <button onclick="JARVIS.importConfig()" class="w-full hud-btn hud-btn-ghost text-left">
+                            Import Configuration
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="hud-panel p-4 glow-box">
+                    <h3 class="hud-title text-xs mb-4">Network Info</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-[#7eb8da]">Main Server</span>
+                            <span class="font-mono text-xs">192.168.0.77</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#7eb8da]">Media Server</span>
+                            <span class="font-mono text-xs">192.168.0.5</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#7eb8da]">Refresh Rate</span>
+                            <span class="font-mono text-xs">30s</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[rgba(0,212,255,0.2)] mt-12">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between text-xs text-[#7eb8da]">
+                <p class="italic">"I do enjoy a good challenge, sir."</p>
+                <p>J.A.R.V.I.S. v1.0.0 | Managed by Niles</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="hidden"></div>
+
+    <!-- Toast Container -->
+    <div id="toast" class="toast">
+        <span id="toast-message"></span>
+    </div>
+
+    <!-- Hidden File Input for Import -->
+    <input type="file" id="import-file" class="hidden" accept=".json">
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // J.A.R.V.I.S. HOMELAB DASHBOARD
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const JARVIS = {
+            // Configuration
+            config: {
+                refreshInterval: 30000,
+                timeout: 5000,
+                maxRetries: 2,
+                storageKey: 'jarvis-servers'
+            },
+
+            // State
+            servers: [],
+            status: {},
+            activityLog: [],
+            refreshTimer: null,
+
+            // ═══════════════════════════════════════════════════════════════════
+            // DEFAULT SERVERS (Pre-configured homelab)
+            // ═══════════════════════════════════════════════════════════════════
+
+            getDefaultServers() {
+                return [
+                    // Main Server (192.168.0.77)
+                    { id: 'omada', name: 'Omada Controller', address: '192.168.0.2', port: 8043, type: 'network', healthEndpoint: '/', group: 'main', enabled: true },
+                    { id: 'radarr', name: 'Radarr', address: '192.168.0.15', port: 7878, type: 'arr', healthEndpoint: '/api/v3/system/status', group: 'main', enabled: true },
+                    { id: 'sonarr', name: 'Sonarr', address: '192.168.0.16', port: 8989, type: 'arr', healthEndpoint: '/api/v3/system/status', group: 'main', enabled: true },
+                    { id: 'prowlarr', name: 'Prowlarr', address: '192.168.0.17', port: 9696, type: 'arr', healthEndpoint: '/api/v1/system/status', group: 'main', enabled: true },
+                    { id: 'jellyseerr', name: 'Jellyseerr', address: '192.168.0.18', port: 5055, type: 'media', healthEndpoint: '/api/v1/status', group: 'main', enabled: true },
+                    { id: 'qbittorrent', name: 'qBittorrent', address: '192.168.0.19', port: 8090, type: 'download', healthEndpoint: '/', group: 'main', enabled: true },
+                    { id: 'flaresolverr', name: 'FlareSolverr', address: '192.168.0.20', port: 8191, type: 'utility', healthEndpoint: '/health', group: 'main', enabled: true },
+                    { id: 'mediasync', name: 'Media Sync', address: '192.168.0.21', port: 3000, type: 'monitoring', healthEndpoint: '/api/status', group: 'main', enabled: true },
+
+                    // Media Server (192.168.0.5)
+                    { id: 'tdarr', name: 'Tdarr', address: '192.168.0.31', port: 8265, type: 'media', healthEndpoint: '/', group: 'media', enabled: true },
+                    { id: 'prometheus', name: 'Prometheus', address: '192.168.0.52', port: 9090, type: 'monitoring', healthEndpoint: '/-/healthy', group: 'media', enabled: true },
+                    { id: 'grafana', name: 'Grafana', address: '192.168.0.53', port: 3000, type: 'monitoring', healthEndpoint: '/api/health', group: 'media', enabled: true },
+                    { id: 'jellyfin', name: 'Jellyfin', address: '192.168.0.62', port: 8096, type: 'media', healthEndpoint: '/health', group: 'media', enabled: true },
+                    { id: 'llama-embed', name: 'LLM Embeddings', address: '192.168.0.63', port: 11434, type: 'ai', healthEndpoint: '/api/tags', group: 'media', enabled: true },
+                    { id: 'llama-inference', name: 'LLM Inference', address: '192.168.0.63', port: 11435, type: 'ai', healthEndpoint: '/api/tags', group: 'media', enabled: true },
+                    { id: 'mem0', name: 'Mem0 API', address: '192.168.0.80', port: 8080, type: 'ai', healthEndpoint: '/health', group: 'media', enabled: true },
+                    { id: 'qdrant', name: 'Qdrant', address: '192.168.0.81', port: 6333, type: 'ai', healthEndpoint: '/healthz', group: 'media', enabled: true },
+                    { id: 'neo4j', name: 'Neo4j', address: '192.168.0.82', port: 7474, type: 'ai', healthEndpoint: '/', group: 'media', enabled: true }
+                ];
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // STORAGE MANAGER
+            // ═══════════════════════════════════════════════════════════════════
+
+            async loadServers() {
+                // Try to load from servers.json first
+                try {
+                    const response = await fetch('/servers.json');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.servers && data.servers.length > 0) {
+                            this.log('Loaded servers from servers.json');
+                            return data.servers;
+                        }
+                    }
+                } catch (e) {
+                    // servers.json not available, use localStorage
+                }
+
+                // Try localStorage
+                const stored = localStorage.getItem(this.config.storageKey);
+                if (stored) {
+                    try {
+                        const data = JSON.parse(stored);
+                        this.log('Loaded servers from localStorage');
+                        return data;
+                    } catch (e) {
+                        console.error('Failed to parse stored servers:', e);
+                    }
+                }
+
+                // Fall back to defaults
+                this.log('Using default server configuration');
+                return this.getDefaultServers();
+            },
+
+            saveServers() {
+                localStorage.setItem(this.config.storageKey, JSON.stringify(this.servers));
+                this.log('Configuration saved');
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // HEALTH CHECKER
+            // ═══════════════════════════════════════════════════════════════════
+
+            async checkServer(server) {
+                const startTime = Date.now();
+                const url = `http://${server.address}:${server.port}${server.healthEndpoint || '/'}`;
+
+                try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+
+                    // Try with no-cors mode as fallback for CORS issues
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        signal: controller.signal,
+                        mode: 'no-cors'
+                    });
+
+                    clearTimeout(timeout);
+                    const latency = Date.now() - startTime;
+
+                    // With no-cors, we can't read the response, but if we get here without error,
+                    // it means the server responded
+                    return {
+                        serverId: server.id,
+                        status: 'online',
+                        latency,
+                        timestamp: new Date().toISOString()
+                    };
+                } catch (error) {
+                    const latency = Date.now() - startTime;
+                    return {
+                        serverId: server.id,
+                        status: error.name === 'AbortError' ? 'timeout' : 'offline',
+                        latency: error.name === 'AbortError' ? latency : null,
+                        error: error.message,
+                        timestamp: new Date().toISOString()
+                    };
+                }
+            },
+
+            async checkAllServers() {
+                this.log('Scanning all systems...');
+
+                const enabledServers = this.servers.filter(s => s.enabled);
+                const checks = enabledServers.map(s => this.checkServer(s));
+                const results = await Promise.allSettled(checks);
+
+                let changes = [];
+
+                results.forEach((result, i) => {
+                    const server = enabledServers[i];
+                    if (result.status === 'fulfilled') {
+                        const oldStatus = this.status[server.id]?.status;
+                        const newStatus = result.value.status;
+
+                        if (oldStatus && oldStatus !== newStatus) {
+                            changes.push({ server: server.name, from: oldStatus, to: newStatus });
+                        }
+
+                        this.status[server.id] = result.value;
+                    }
+                });
+
+                // Log status changes
+                changes.forEach(change => {
+                    if (change.to === 'online') {
+                        this.log(`${change.server} is now ONLINE`, 'success');
+                    } else if (change.to === 'offline') {
+                        this.log(`${change.server} went OFFLINE`, 'error');
+                    } else if (change.to === 'timeout') {
+                        this.log(`${change.server} connection TIMEOUT`, 'warning');
+                    }
+                });
+
+                this.updateUI();
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // SERVER MANAGER (CRUD)
+            // ═══════════════════════════════════════════════════════════════════
+
+            addServer(serverData) {
+                const newServer = {
+                    ...serverData,
+                    id: 'srv_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                    enabled: true
+                };
+                this.servers.push(newServer);
+                this.saveServers();
+                this.renderServers();
+                this.checkServer(newServer).then(result => {
+                    this.status[newServer.id] = result;
+                    this.updateUI();
+                });
+                this.log(`Added server: ${newServer.name}`);
+                this.showToast(`Server "${newServer.name}" added`, 'success');
+            },
+
+            updateServer(serverId, updates) {
+                const index = this.servers.findIndex(s => s.id === serverId);
+                if (index !== -1) {
+                    this.servers[index] = { ...this.servers[index], ...updates };
+                    this.saveServers();
+                    this.renderServers();
+                    this.checkServer(this.servers[index]).then(result => {
+                        this.status[serverId] = result;
+                        this.updateUI();
+                    });
+                    this.log(`Updated server: ${this.servers[index].name}`);
+                    this.showToast(`Server updated`, 'success');
+                }
+            },
+
+            removeServer(serverId) {
+                const server = this.servers.find(s => s.id === serverId);
+                if (server) {
+                    this.servers = this.servers.filter(s => s.id !== serverId);
+                    delete this.status[serverId];
+                    this.saveServers();
+                    this.renderServers();
+                    this.updateUI();
+                    this.log(`Removed server: ${server.name}`);
+                    this.showToast(`Server "${server.name}" removed`, 'success');
+                }
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // UI RENDERING
+            // ═══════════════════════════════════════════════════════════════════
+
+            renderServers() {
+                const container = document.getElementById('servers-container');
+                const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+                const typeFilter = document.getElementById('type-filter').value;
+                const statusFilter = document.getElementById('status-filter').value;
+
+                let filtered = this.servers.filter(s => s.enabled);
+
+                // Apply filters
+                if (searchFilter) {
+                    filtered = filtered.filter(s =>
+                        s.name.toLowerCase().includes(searchFilter) ||
+                        s.address.includes(searchFilter)
+                    );
+                }
+                if (typeFilter) {
+                    filtered = filtered.filter(s => s.type === typeFilter);
+                }
+                if (statusFilter) {
+                    filtered = filtered.filter(s => this.status[s.id]?.status === statusFilter);
+                }
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full text-center py-12 text-[#7eb8da]">
+                            <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="font-display tracking-wider">NO SYSTEMS FOUND</p>
+                            <p class="text-sm mt-2">Try adjusting your filters</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filtered.map((server, index) => {
+                    const status = this.status[server.id] || { status: 'unknown' };
+                    const latencyDisplay = status.latency ? `${status.latency}ms` : '--';
+
+                    return `
+                        <div class="server-card ${status.status} card-reveal" style="animation-delay: ${index * 50}ms;">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="status-indicator ${status.status}"></span>
+                                    <h3 class="font-display text-sm font-semibold tracking-wide">${server.name}</h3>
+                                </div>
+                                <button onclick="JARVIS.showEditModal('${server.id}')" class="text-[#7eb8da] hover:text-[#00d4ff] transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-[#7eb8da]">Address</span>
+                                    <span class="font-mono text-xs">${server.address}:${server.port}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-[#7eb8da]">Latency</span>
+                                    <span class="font-mono text-xs ${status.status === 'online' ? 'text-[#00ff88]' : ''}">${latencyDisplay}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-[#7eb8da]">Status</span>
+                                    <span class="font-mono text-xs uppercase ${this.getStatusClass(status.status)}">${status.status}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-[rgba(0,212,255,0.1)] flex items-center justify-between">
+                                <span class="type-badge ${server.type}">${server.type}</span>
+                                <a href="http://${server.address}:${server.port}" target="_blank" class="text-xs text-[#7eb8da] hover:text-[#00d4ff] transition-colors">
+                                    Open &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            getStatusClass(status) {
+                const classes = {
+                    online: 'text-[#00ff88]',
+                    offline: 'text-[#ff3366]',
+                    timeout: 'text-[#ffcc00]',
+                    unknown: 'text-[#666666]'
+                };
+                return classes[status] || classes.unknown;
+            },
+
+            updateUI() {
+                this.renderServers();
+                this.updateStats();
+                this.updateArcReactor();
+                this.updateLastUpdate();
+                this.updateServerGroups();
+            },
+
+            updateStats() {
+                const statuses = Object.values(this.status);
+                const online = statuses.filter(s => s.status === 'online').length;
+                const degraded = statuses.filter(s => s.status === 'timeout').length;
+                const offline = statuses.filter(s => s.status === 'offline').length;
+                const total = this.servers.filter(s => s.enabled).length;
+
+                document.getElementById('stat-online').textContent = online;
+                document.getElementById('stat-degraded').textContent = degraded;
+                document.getElementById('stat-offline').textContent = offline;
+                document.getElementById('stat-total').textContent = total;
+
+                // Update global status
+                const globalStatus = document.getElementById('global-status');
+                if (offline > 0) {
+                    globalStatus.innerHTML = `
+                        <span class="status-indicator offline"></span>
+                        <span class="text-sm text-[#ff3366]">${offline} System(s) Offline</span>
+                    `;
+                } else if (degraded > 0) {
+                    globalStatus.innerHTML = `
+                        <span class="status-indicator timeout"></span>
+                        <span class="text-sm text-[#ffcc00]">${degraded} System(s) Degraded</span>
+                    `;
+                } else if (online > 0) {
+                    globalStatus.innerHTML = `
+                        <span class="status-indicator online"></span>
+                        <span class="text-sm text-[#00ff88]">All Systems Operational</span>
+                    `;
+                } else {
+                    globalStatus.innerHTML = `
+                        <span class="status-indicator unknown"></span>
+                        <span class="text-sm">Scanning...</span>
+                    `;
+                }
+            },
+
+            updateArcReactor() {
+                const statuses = Object.values(this.status);
+                const total = this.servers.filter(s => s.enabled).length;
+                const online = statuses.filter(s => s.status === 'online').length;
+                const percentage = total > 0 ? Math.round((online / total) * 100) : 0;
+
+                document.getElementById('health-percentage').textContent = `${percentage}%`;
+
+                const reactor = document.querySelector('.arc-reactor');
+                if (percentage >= 90) {
+                    reactor.setAttribute('data-health', 'optimal');
+                } else if (percentage >= 70) {
+                    reactor.setAttribute('data-health', 'nominal');
+                } else if (percentage >= 50) {
+                    reactor.setAttribute('data-health', 'degraded');
+                } else {
+                    reactor.setAttribute('data-health', 'critical');
+                }
+            },
+
+            updateLastUpdate() {
+                const now = new Date();
+                document.getElementById('last-update').textContent =
+                    `Last updated: ${now.toLocaleTimeString()}`;
+            },
+
+            updateServerGroups() {
+                const groups = {};
+                this.servers.filter(s => s.enabled).forEach(server => {
+                    const group = server.group || 'other';
+                    if (!groups[group]) groups[group] = { total: 0, online: 0 };
+                    groups[group].total++;
+                    if (this.status[server.id]?.status === 'online') {
+                        groups[group].online++;
+                    }
+                });
+
+                const container = document.getElementById('server-groups');
+                container.innerHTML = Object.entries(groups).map(([name, data]) => {
+                    const percentage = data.total > 0 ? Math.round((data.online / data.total) * 100) : 0;
+                    const color = percentage === 100 ? '#00ff88' : percentage >= 50 ? '#ffcc00' : '#ff3366';
+
+                    return `
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-[#7eb8da] capitalize">${name}</span>
+                            <span class="font-mono text-xs" style="color: ${color}">${data.online}/${data.total}</span>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // ACTIVITY LOG
+            // ═══════════════════════════════════════════════════════════════════
+
+            log(message, type = 'info') {
+                const now = new Date();
+                const timestamp = now.toLocaleTimeString('en-GB', { hour12: false });
+
+                this.activityLog.unshift({ timestamp, message, type });
+                if (this.activityLog.length > 50) {
+                    this.activityLog.pop();
+                }
+
+                this.renderActivityFeed();
+            },
+
+            renderActivityFeed() {
+                const container = document.getElementById('activity-feed');
+                container.innerHTML = this.activityLog.slice(0, 20).map(entry => {
+                    const colorClass = {
+                        success: 'text-[#00ff88]',
+                        error: 'text-[#ff3366]',
+                        warning: 'text-[#ffcc00]',
+                        info: 'text-[#e0f0ff]'
+                    }[entry.type] || 'text-[#e0f0ff]';
+
+                    return `
+                        <div class="feed-item ${colorClass}">
+                            <span class="feed-timestamp">${entry.timestamp}</span>
+                            <span class="ml-2">${entry.message}</span>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // MODALS
+            // ═══════════════════════════════════════════════════════════════════
+
+            showAddModal() {
+                const container = document.getElementById('modal-container');
+                container.innerHTML = this.getModalHTML();
+                container.classList.remove('hidden');
+            },
+
+            showEditModal(serverId) {
+                const server = this.servers.find(s => s.id === serverId);
+                if (server) {
+                    const container = document.getElementById('modal-container');
+                    container.innerHTML = this.getModalHTML(server);
+                    container.classList.remove('hidden');
+                }
+            },
+
+            hideModal() {
+                document.getElementById('modal-container').classList.add('hidden');
+            },
+
+            getModalHTML(server = null) {
+                const isEdit = server !== null;
+                return `
+                    <div class="modal-backdrop" onclick="JARVIS.hideModal()"></div>
+                    <div class="modal-content hud-panel p-6 glow-box">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="hud-title text-lg">${isEdit ? 'Edit Server' : 'Add New Server'}</h2>
+                            <button onclick="JARVIS.hideModal()" class="text-[#7eb8da] hover:text-white">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form id="server-form" onsubmit="JARVIS.handleFormSubmit(event)">
+                            <input type="hidden" name="id" value="${server?.id || ''}">
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Name</label>
+                                    <input type="text" name="name" class="hud-input" value="${server?.name || ''}" placeholder="My Server" required>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Address</label>
+                                        <input type="text" name="address" class="hud-input" value="${server?.address || ''}" placeholder="192.168.0.x" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Port</label>
+                                        <input type="number" name="port" class="hud-input" value="${server?.port || ''}" placeholder="8080" required>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Health Endpoint</label>
+                                    <input type="text" name="healthEndpoint" class="hud-input" value="${server?.healthEndpoint || '/'}" placeholder="/health">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Type</label>
+                                        <select name="type" class="hud-select">
+                                            <option value="arr" ${server?.type === 'arr' ? 'selected' : ''}>*arr Service</option>
+                                            <option value="media" ${server?.type === 'media' ? 'selected' : ''}>Media</option>
+                                            <option value="network" ${server?.type === 'network' ? 'selected' : ''}>Network</option>
+                                            <option value="ai" ${server?.type === 'ai' ? 'selected' : ''}>AI Service</option>
+                                            <option value="monitoring" ${server?.type === 'monitoring' ? 'selected' : ''}>Monitoring</option>
+                                            <option value="download" ${server?.type === 'download' ? 'selected' : ''}>Download</option>
+                                            <option value="utility" ${server?.type === 'utility' ? 'selected' : ''}>Utility</option>
+                                            <option value="custom" ${server?.type === 'custom' ? 'selected' : ''}>Custom</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-[#7eb8da] uppercase tracking-wider mb-2">Group</label>
+                                        <select name="group" class="hud-select">
+                                            <option value="main" ${server?.group === 'main' ? 'selected' : ''}>Main Server</option>
+                                            <option value="media" ${server?.group === 'media' ? 'selected' : ''}>Media Server</option>
+                                            <option value="other" ${server?.group === 'other' ? 'selected' : ''}>Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between mt-6 pt-6 border-t border-[rgba(0,212,255,0.2)]">
+                                ${isEdit ? `
+                                    <button type="button" class="hud-btn hud-btn-danger" onclick="JARVIS.confirmDelete('${server.id}')">
+                                        Delete
+                                    </button>
+                                ` : '<div></div>'}
+                                <div class="flex gap-3">
+                                    <button type="button" class="hud-btn hud-btn-ghost" onclick="JARVIS.hideModal()">Cancel</button>
+                                    <button type="submit" class="hud-btn hud-btn-primary">${isEdit ? 'Update' : 'Add Server'}</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            },
+
+            handleFormSubmit(event) {
+                event.preventDefault();
+                const form = event.target;
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+                data.port = parseInt(data.port);
+
+                if (data.id) {
+                    this.updateServer(data.id, data);
+                } else {
+                    this.addServer(data);
+                }
+
+                this.hideModal();
+            },
+
+            confirmDelete(serverId) {
+                const server = this.servers.find(s => s.id === serverId);
+                if (server && confirm(`Are you sure you want to remove "${server.name}"?`)) {
+                    this.removeServer(serverId);
+                    this.hideModal();
+                }
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // IMPORT/EXPORT
+            // ═══════════════════════════════════════════════════════════════════
+
+            exportConfig() {
+                const config = {
+                    version: '1.0',
+                    exportedAt: new Date().toISOString(),
+                    servers: this.servers
+                };
+
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jarvis-config-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                this.log('Configuration exported');
+                this.showToast('Configuration exported', 'success');
+            },
+
+            importConfig() {
+                document.getElementById('import-file').click();
+            },
+
+            handleImport(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const config = JSON.parse(e.target.result);
+                        if (config.servers && Array.isArray(config.servers)) {
+                            this.servers = config.servers;
+                            this.saveServers();
+                            this.status = {};
+                            this.checkAllServers();
+                            this.log(`Imported ${config.servers.length} servers`);
+                            this.showToast('Configuration imported', 'success');
+                        } else {
+                            throw new Error('Invalid configuration format');
+                        }
+                    } catch (error) {
+                        this.log('Import failed: ' + error.message, 'error');
+                        this.showToast('Import failed: Invalid file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // TOAST NOTIFICATIONS
+            // ═══════════════════════════════════════════════════════════════════
+
+            showToast(message, type = 'info') {
+                const toast = document.getElementById('toast');
+                const messageEl = document.getElementById('toast-message');
+
+                messageEl.textContent = message;
+                toast.className = `toast ${type} show`;
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // CLOCK
+            // ═══════════════════════════════════════════════════════════════════
+
+            updateClock() {
+                const now = new Date();
+                document.getElementById('system-time').textContent =
+                    now.toLocaleTimeString('en-GB', { hour12: false }) + ' | ' +
+                    now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            },
+
+            // ═══════════════════════════════════════════════════════════════════
+            // INITIALIZATION
+            // ═══════════════════════════════════════════════════════════════════
+
+            async init() {
+                console.log('Initializing J.A.R.V.I.S. Dashboard...');
+                this.log('J.A.R.V.I.S. initializing...');
+
+                // Load servers
+                this.servers = await this.loadServers();
+
+                // Initial render
+                this.renderServers();
+                this.renderActivityFeed();
+
+                // Start health checks
+                await this.checkAllServers();
+
+                // Set up refresh interval
+                this.refreshTimer = setInterval(() => {
+                    this.checkAllServers();
+                }, this.config.refreshInterval);
+
+                // Set up clock
+                this.updateClock();
+                setInterval(() => this.updateClock(), 1000);
+
+                // Event listeners
+                document.getElementById('add-server-btn').addEventListener('click', () => this.showAddModal());
+                document.getElementById('refresh-btn').addEventListener('click', () => this.checkAllServers());
+                document.getElementById('search-filter').addEventListener('input', () => this.renderServers());
+                document.getElementById('type-filter').addEventListener('change', () => this.renderServers());
+                document.getElementById('status-filter').addEventListener('change', () => this.renderServers());
+                document.getElementById('import-file').addEventListener('change', (e) => this.handleImport(e));
+
+                this.log('J.A.R.V.I.S. online', 'success');
+                console.log('J.A.R.V.I.S. Online');
+            }
+        };
+
+        // Start when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => JARVIS.init());
+    </script>
+</body>
+</html>

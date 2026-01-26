@@ -1,0 +1,22 @@
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Local development
+*.local
+.env
+.env.local
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
