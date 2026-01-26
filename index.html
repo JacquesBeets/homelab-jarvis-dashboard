@@ -848,35 +848,42 @@
             // ═══════════════════════════════════════════════════════════════════
 
             async loadServers() {
-                // Try to load from servers.json first
+                // Check localStorage FIRST - this is where user changes are saved
+                const stored = localStorage.getItem(this.config.storageKey);
+                if (stored) {
+                    try {
+                        const data = JSON.parse(stored);
+                        if (Array.isArray(data) && data.length > 0) {
+                            this.log('Loaded servers from localStorage');
+                            return data;
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse localStorage data:', e);
+                    }
+                }
+
+                // Fall back to servers.json only if localStorage is empty/invalid
+                // This serves as seed data for first-time users
                 try {
                     const response = await fetch('/servers.json');
                     if (response.ok) {
                         const data = await response.json();
                         if (data.servers && data.servers.length > 0) {
-                            this.log('Loaded servers from servers.json');
+                            this.log('Loaded default servers from servers.json (first run)');
+                            // Save to localStorage so future changes persist
+                            localStorage.setItem(this.config.storageKey, JSON.stringify(data.servers));
                             return data.servers;
                         }
                     }
                 } catch (e) {
-                    // servers.json not available, use localStorage
+                    // servers.json not available, use defaults
                 }
 
-                // Try localStorage
-                const stored = localStorage.getItem(this.config.storageKey);
-                if (stored) {
-                    try {
-                        const data = JSON.parse(stored);
-                        this.log('Loaded servers from localStorage');
-                        return data;
-                    } catch (e) {
-                        console.error('Failed to parse stored servers:', e);
-                    }
-                }
-
-                // Fall back to defaults
+                // Fall back to built-in defaults
                 this.log('Using default server configuration');
-                return this.getDefaultServers();
+                const defaults = this.getDefaultServers();
+                localStorage.setItem(this.config.storageKey, JSON.stringify(defaults));
+                return defaults;
             },
 
             saveServers() {
