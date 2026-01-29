@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- Arc reactor glow gradient -->
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#0088cc" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#003366" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Outer ring gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#0088cc"/>
+    </linearGradient>
+    <!-- Inner glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background hexagon -->
+  <polygon points="32,2 58,17 58,47 32,62 6,47 6,17" fill="#0a0e17" stroke="#00d4ff" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- Outer reactor ring -->
+  <circle cx="32" cy="32" r="22" fill="none" stroke="url(#ringGrad)" stroke-width="2" stroke-opacity="0.8"/>
+
+  <!-- Middle dashed ring -->
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4 3" stroke-opacity="0.5"/>
+
+  <!-- Inner ring -->
+  <circle cx="32" cy="32" r="12" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-opacity="0.7"/>
+
+  <!-- Core glow -->
+  <circle cx="32" cy="32" r="10" fill="url(#coreGlow)" filter="url(#glow)"/>
+
+  <!-- Core center -->
+  <circle cx="32" cy="32" r="5" fill="#00d4ff" filter="url(#glow)"/>
+
+  <!-- Reactor segments (4 points) -->
+  <circle cx="32" cy="10" r="2.5" fill="#00d4ff" filter="url(#glow)"/>
+  <circle cx="54" cy="32" r="2.5" fill="#00d4ff" filter="url(#glow)"/>
+  <circle cx="32" cy="54" r="2.5" fill="#00d4ff" filter="url(#glow)"/>
+  <circle cx="10" cy="32" r="2.5" fill="#00d4ff" filter="url(#glow)"/>
+
+  <!-- Connecting lines -->
+  <line x1="32" y1="12" x2="32" y2="22" stroke="#00d4ff" stroke-width="1" stroke-opacity="0.4"/>
+  <line x1="42" y1="32" x2="52" y2="32" stroke="#00d4ff" stroke-width="1" stroke-opacity="0.4"/>
+  <line x1="32" y1="42" x2="32" y2="52" stroke="#00d4ff" stroke-width="1" stroke-opacity="0.4"/>
+  <line x1="12" y1="32" x2="22" y2="32" stroke="#00d4ff" stroke-width="1" stroke-opacity="0.4"/>
+</svg>
